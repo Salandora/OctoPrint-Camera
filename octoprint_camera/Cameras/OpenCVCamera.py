@@ -15,8 +15,9 @@ class OpenCVCamera(ICamera):
 			return False
 
 		try:
-			self._camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 640)
-			self._camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 480)
+			
+			self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+			self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 		except Exception as e:
 			self._core_logger.error('Error setting camera frame to 640x480 size: %s' % e)
 			return False
