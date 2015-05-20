@@ -20,6 +20,10 @@ class CameraPlugin(octoprint.plugin.TemplatePlugin,
 				   octoprint.plugin.BlueprintPlugin):
 	def __init__(self, *args, **kwargs):
 		self._camera = getCameraObject()
+		if self._camera is None:
+			self._logger.error("Camera Object was not created correctly")
+
+		self._camera.setLogger(self._logger)
 
 	def is_blueprint_protected(self):
 		return False

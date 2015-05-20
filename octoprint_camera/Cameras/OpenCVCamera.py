@@ -8,8 +8,8 @@ class OpenCVCamera(ICamera):
 
 	def openCamera(self):
 		self._camera = cv2.VideoCapture(0)
-
 		if not self._camera.isOpened():
+			self._logger.error("Couldn't open camera")
 			return False
 
 		try:
@@ -45,10 +45,4 @@ class OpenCVCamera(ICamera):
 			return jpeg.tobytes()
 
 		return None
-
-	def genVideo(self):
-		while True:
-			frame = self.grabImage()
-			yield (b'--frame\r\n'
-				   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 

@@ -1,4 +1,5 @@
 from sys import platform
+import logging
 
 _instance = None
 
@@ -7,7 +8,7 @@ def getCameraObject():
 	if _instance is None:
 		if "linux" in platform or platform == "win32":
 			from .OpenCVCamera import OpenCVCamera
-			_instance = OpenCVCamera()
+			_instance = OpenCVCamera()			
 
 	return _instance
 
@@ -25,5 +26,5 @@ class ICamera(object):
 	def grabImage(self):
 		pass
 
-	def genVideo(self):
-		pass
+	def setLogger(self, logger):
+		self._logger = logger
