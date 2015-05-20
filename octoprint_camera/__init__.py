@@ -9,61 +9,33 @@ from __future__ import absolute_import
 #
 # Take a look at the documentation on what other plugin mixins are available.
 
-import cv2
-import flask
+from flask import make_response, Response
 import logging
 import octoprint.plugin
 
-class CameraPlugin(octoprint.plugin.TemplatePlugin, octoprint.plugin.BlueprintPlugin):
+from .Cameras import getCameraObject
+
+class CameraPlugin(octoprint.plugin.TemplatePlugin, 
+			  	   octoprint.plugin.AssetPlugin,
+				   octoprint.plugin.BlueprintPlugin):
 	def __init__(self, *args, **kwargs):
-		self._camera = None
-
-	def _openCamera(self):
-		self._camera = cv2.VideoCapture(0)
-
-		try:
-			self._camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 640)
-			self._camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 480)
-		except Exception as e:
-			self._logger.error('Error setting camera frame to 800x448 size: %s' % e)
-			return False
-
-		try:
-			self._getFrame()
-		except:
-			return False
-
-		return True
-
-	def _getFrame(self):
-		if self._camera is None:
-			if not self._openCamera():
-				return None
-
-		for i in range(5):
-			self._camera.retrieve() # some garbage
-
-		try:
-			success, image = self._camera.retrieve()
-		except:
-			success = False
-
-		if success:
-			ret, jpeg = cv2.imencode('.jpg', image)
-			return jpeg.tobytes()
-
-		return None
+		self._camera = getCameraObject()
 
 	def is_blueprint_protected(self):
 		return False
 
+	def get_assets(self):
+		return dict(
+			js=["js/camera.js"],
+		)
+
 	@octoprint.plugin.BlueprintPlugin.route("/grabPic", methods=["GET"])
 	def grabPic(self):
-		frame = self._getFrame()
+		frame = self._camera.grabImage()
 		if frame is None:
-			return flask.make_response("Something went wrong while creating Capture Object", 500);
+			return make_response("Something went wrong while grabbing an Image", 500);
 		
-		return flask.Response(frame, mimetype='image/jpeg')
+		return Response(frame, mimetype='image/jpeg')
 
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
