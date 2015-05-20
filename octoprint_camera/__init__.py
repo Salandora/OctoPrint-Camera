@@ -31,6 +31,9 @@ class CameraPlugin(octoprint.plugin.TemplatePlugin,
 
 	@octoprint.plugin.BlueprintPlugin.route("/grabPic", methods=["GET"])
 	def grabPic(self):
+		if self._camera is None:
+			return make_response("Something went wrong while creating Video Capture Object", 500);
+
 		frame = self._camera.grabImage()
 		if frame is None:
 			return make_response("Something went wrong while grabbing an Image", 500);

@@ -5,7 +5,7 @@ _instance = None
 def getCameraObject():
 	global _instance
 	if _instance is None:
-		if platform == "linux" or platform == "win32":
+		if "linux" in platform or platform == "win32":
 			from .OpenCVCamera import OpenCVCamera
 			_instance = OpenCVCamera()
 
