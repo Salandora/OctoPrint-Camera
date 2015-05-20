@@ -1,10 +1,12 @@
 from . import ICamera
 import cv2
+import logging
 
 class OpenCVCamera(ICamera):
 	"""description of class"""
 	def __init__(self):
-		self.openCamera()
+		self._core_logger = logging.getLogger("octoprint.plugins.camera.core")
+		openCamera(self)
 
 	def openCamera(self):
 		self._camera = cv2.VideoCapture(0)

@@ -25,6 +25,3 @@ class ICamera(object):
 
 	def grabImage(self):
 		pass
-
-	def setLogger(self, logger):
-		self._logger = logger
