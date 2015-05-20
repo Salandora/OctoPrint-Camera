@@ -16,6 +16,7 @@ import octoprint.plugin
 from .Cameras import getCameraObject
 
 class CameraPlugin(octoprint.plugin.StartupPlugin,
+                   octoprint.plugin.SettingsPlugin,
 				   octoprint.plugin.TemplatePlugin, 
 			  	   octoprint.plugin.AssetPlugin,
 				   octoprint.plugin.BlueprintPlugin):
