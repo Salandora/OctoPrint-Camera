@@ -21,6 +21,8 @@
                 self.createImageLayer();
             }
         }
+
+        self.imageLoaded();
     }
 
     // view model class, parameters for constructor, container to bind to
