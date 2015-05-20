@@ -4,21 +4,21 @@ import logging
 
 class OpenCVCamera(ICamera):
 	"""description of class"""
-	def __init__(self):
-		self._core_logger = logging.getLogger("octoprint.plugins.camera.core")
-		openCamera(self)
+	def __init__(self, logger):
+		self._core_logger = logger
+		self.openCamera()
 
 	def openCamera(self):
 		self._camera = cv2.VideoCapture(0)
 		if not self._camera.isOpened():
-			self._logger.error("Couldn't open camera")
+			self._core_logger.error("Couldn't open camera")
 			return False
 
 		try:
 			self._camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 640)
 			self._camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 480)
 		except Exception as e:
-			self._logger.error('Error setting camera frame to 640x480 size: %s' % e)
+			self._core_logger.error('Error setting camera frame to 640x480 size: %s' % e)
 			return False
 
 		for i in range(5):

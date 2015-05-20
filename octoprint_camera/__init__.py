@@ -15,16 +15,27 @@ import octoprint.plugin
 
 from .Cameras import getCameraObject
 
-class CameraPlugin(octoprint.plugin.TemplatePlugin, 
+class CameraPlugin(octoprint.plugin.StartupPlugin,
+				   octoprint.plugin.TemplatePlugin, 
 			  	   octoprint.plugin.AssetPlugin,
 				   octoprint.plugin.BlueprintPlugin):
 	def __init__(self, *args, **kwargs):
 		self._logger = logging.getLogger("octoprint.plugins.camera")
 		self._core_logger = logging.getLogger("octoprint.plugins.camera.core")
 
-		self._camera = getCameraObject()
+		self._camera = getCameraObject(self._core_logger)
 		if self._camera is None:
 			self._core_logger.error("Camera Object was not created correctly")
+
+	def on_startup(self, host, port):
+		# setup our custom logger
+		core_logging_handler = logging.handlers.RotatingFileHandler(self._settings.get_plugin_logfile_path(postfix="core"), maxBytes=2*1024*1024)
+		core_logging_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+		core_logging_handler.setLevel(logging.DEBUG)
+
+		self._core_logger.addHandler(core_logging_handler)
+		self._core_logger.setLevel(logging.DEBUG if self._settings.get_boolean(["debug_logging"]) else logging.CRITICAL)
+		self._core_logger.propagate = False
 
 	def is_blueprint_protected(self):
 		return False
