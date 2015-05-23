@@ -16,11 +16,11 @@ class ICamera(object):
 	def __init__(self):
 		pass
 
-	def close(self): 
-		pass
-
 	def __del__(self):
 		self.close()
+
+	def close(self): 
+		pass
 
 	def grabImage(self):
 		pass

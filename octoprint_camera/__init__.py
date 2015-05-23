@@ -9,24 +9,29 @@ from __future__ import absolute_import
 #
 # Take a look at the documentation on what other plugin mixins are available.
 
-from flask import make_response, Response
+from flask import make_response, render_template, Response
 import logging
 import octoprint.plugin
 
 from .Cameras import getCameraObject
 
+
+def gen(camera):
+	while True:
+		frame = camera.grabImage()
+		yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
 class CameraPlugin(octoprint.plugin.StartupPlugin,
-                   octoprint.plugin.SettingsPlugin,
-				   octoprint.plugin.TemplatePlugin, 
-			  	   octoprint.plugin.AssetPlugin,
+				   octoprint.plugin.ShutdownPlugin,
+				   octoprint.plugin.SettingsPlugin,
 				   octoprint.plugin.BlueprintPlugin):
 	def __init__(self, *args, **kwargs):
 		self._logger = logging.getLogger("octoprint.plugins.camera")
 		self._core_logger = logging.getLogger("octoprint.plugins.camera.core")
 
-		self._camera = getCameraObject(self._core_logger)
-		if self._camera is None:
-			self._core_logger.error("Camera Object was not created correctly")
+	def __del__(self):
+		if self._camera is not None:
+			self._camera.close()
 
 	def on_startup(self, host, port):
 		# setup our custom logger
@@ -38,13 +43,17 @@ class CameraPlugin(octoprint.plugin.StartupPlugin,
 		self._core_logger.setLevel(logging.DEBUG if self._settings.get_boolean(["debug_logging"]) else logging.CRITICAL)
 		self._core_logger.propagate = False
 
+		self._camera = getCameraObject(self._core_logger)
+		if self._camera is None:
+			self._core_logger.error("Camera Object was not created correctly")
+
+		self._camera.startCamera()
+
+	def on_shutdown(self):
+		self._camera.close();
+
 	def is_blueprint_protected(self):
 		return False
-
-	def get_assets(self):
-		return dict(
-			js=["js/camera.js"],
-		)
 
 	@octoprint.plugin.BlueprintPlugin.route("/grabPic", methods=["GET"])
 	def grabPic(self):
@@ -66,6 +75,3 @@ __plugin_name__ = "Camera Plugin"
 def __plugin_load__():
 	global __plugin_implementation__
 	__plugin_implementation__ = CameraPlugin()
-
-	# global __plugin_hooks__
-	# __plugin_hooks__ = {"some.octoprint.hook": __plugin_implementation__.some_hook_handler}
