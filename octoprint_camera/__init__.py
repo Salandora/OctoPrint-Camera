@@ -11,33 +11,24 @@ from __future__ import absolute_import
 
 from flask import make_response, render_template, Response
 import logging
+import tornado
+import tornado.web
 import octoprint.plugin
 
 from .Cameras import getCameraObject
 
 class CameraPlugin(octoprint.plugin.StartupPlugin,
 				   octoprint.plugin.ShutdownPlugin,
-				   octoprint.plugin.SettingsPlugin,
-				   octoprint.plugin.BlueprintPlugin):
+				   octoprint.plugin.SettingsPlugin):
 	def __init__(self, *args, **kwargs):
 		self._logger = logging.getLogger("octoprint.plugins.camera")
-		self._core_logger = logging.getLogger("octoprint.plugins.camera.core")
 
 	def __del__(self):
 		if self._camera is not None:
 			self._camera.close()
 
 	def on_startup(self, host, port):
-		# setup our custom logger
-		core_logging_handler = logging.handlers.RotatingFileHandler(self._settings.get_plugin_logfile_path(postfix="core"), maxBytes=2*1024*1024)
-		core_logging_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
-		core_logging_handler.setLevel(logging.DEBUG)
-
-		self._core_logger.addHandler(core_logging_handler)
-		self._core_logger.setLevel(logging.DEBUG if self._settings.get_boolean(["debug_logging"]) else logging.CRITICAL)
-		self._core_logger.propagate = False
-
-		self._camera = getCameraObject(self._core_logger)
+		self._camera = getCameraObject()
 		if self._camera is None:
 			self._core_logger.error("Camera Object was not created correctly")
 
@@ -46,20 +37,30 @@ class CameraPlugin(octoprint.plugin.StartupPlugin,
 	def on_shutdown(self):
 		self._camera.close()
 
-	def is_blueprint_protected(self):
-		return False
+	def routes_hook(self, current_routes):
+		return [
+			(r"/camera/grabImage", CameraResponseHandler, dict())
+		]
 
-	@octoprint.plugin.BlueprintPlugin.route("/grabPic", methods=["GET"])
-	def sendImage(self):
+class CameraResponseHandler(tornado.web.RequestHandler):
+	def initialize(self, access_validation=None):
+		self._camera = getCameraObject()
+		self._access_validation = access_validation
+
+	def get(self, *args, **kwargs):
+		if self._access_validation is not None:
+			self._access_validation(self.request)
+
 		if self._camera is None:
 			return make_response("Something went wrong while creating Video Capture Object", 500);
 
 		frame = self._camera.grabImage()
 		if frame is None:
 			return make_response("Something went wrong while grabbing an Image", 500);
-		
-		return Response(frame, mimetype='image/jpeg')
 
+		self.set_header("Content-Type", "image/jpeg")
+		self.write(frame)
+		self.finish()
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
@@ -69,3 +70,6 @@ __plugin_name__ = "Camera Plugin"
 def __plugin_load__():
 	global __plugin_implementation__
 	__plugin_implementation__ = CameraPlugin()
+
+	global __plugin_hooks__
+	__plugin_hooks__ = {"octoprint.server.http.routes": __plugin_implementation__.routes_hook}

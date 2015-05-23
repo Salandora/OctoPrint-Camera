@@ -8,8 +8,8 @@ import threading
 # highly inspired by https://github.com/miguelgrinberg/flask-video-streaming/blob/master/camera_pi.py
 class OpenCVCamera(ICamera):
 
-	def __init__(self, logger):
-		self._core_logger = logger
+	def __init__(self):
+		self._logger = logging.getLogger("octoprint.plugins.camera")
 		self.running = False
 		self.thread = None
 		self.frame = None
@@ -31,15 +31,15 @@ class OpenCVCamera(ICamera):
 	def openCamera(self):
 		self._camera = cv2.VideoCapture(0)
 		if not self._cameraOpen():
-			self._core_logger.error("Couldn't open camera")
+			self._logger.error("Couldn't open camera")
 			return False
 
-		#try:
-		#	self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-		#	self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-		#except Exception as e:
-		#	self._core_logger.error('Error setting camera frame to 320x240 size: %s' % e)
-		#	return False
+		try:
+			self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+			self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+		except Exception as e:
+			self._logger.error('Error setting camera frame to 640x480 size: %s' % e)
+			return False
 
 		return True
 
@@ -57,15 +57,12 @@ class OpenCVCamera(ICamera):
 			return
 
 		while cls.running:
-			try:
-				success, image = cls._camera.read()
-			except:
-				success = False
-
+			success = cls._camera.grab()
 			if success:
-				ret, jpeg = cv2.imencode('.jpg', image)
-				with cls.frameLock:
-					cls.frame = jpeg.tostring()
+				success, image = cls._camera.retrieve()
+				if success:
+					with cls.frameLock:
+						cls.frame = image
 
 		cls.thread = None
 		cls.close()
@@ -73,5 +70,6 @@ class OpenCVCamera(ICamera):
 	def grabImage(self):
 		self.startCamera()
 		with self.frameLock:
-			return self.frame
+			ret, jpeg = cv2.imencode('.jpg', self.frame)
+			return jpeg.tostring()
 

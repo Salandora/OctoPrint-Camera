@@ -2,12 +2,12 @@ from sys import platform
 
 _instance = None
 
-def getCameraObject(logger):
+def getCameraObject():
 	global _instance
 	if _instance is None:
 		if "linux" in platform or platform == "win32":
 			from .OpenCVCamera import OpenCVCamera
-			_instance = OpenCVCamera(logger)			
+			_instance = OpenCVCamera()			
 
 	return _instance
 
