@@ -14,6 +14,8 @@ class OpenCVCamera(ICamera):
 		self.thread = None
 		self.frame = None
 
+		self.frameLock = threading.Lock()
+
 	def startCamera(self):
 		if self.thread is None:
 			self.running = True
@@ -62,12 +64,14 @@ class OpenCVCamera(ICamera):
 
 			if success:
 				ret, jpeg = cv2.imencode('.jpg', image)
-				cls.frame = jpeg.tostring()
+				with cls.frameLock:
+					cls.frame = jpeg.tostring()
 
 		cls.thread = None
 		cls.close()
 
 	def grabImage(self):
 		self.startCamera()
-		return self.frame
+		with self.frameLock:
+			return self.frame
 

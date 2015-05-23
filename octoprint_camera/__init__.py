@@ -15,12 +15,6 @@ import octoprint.plugin
 
 from .Cameras import getCameraObject
 
-
-def gen(camera):
-	while True:
-		frame = camera.grabImage()
-		yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
 class CameraPlugin(octoprint.plugin.StartupPlugin,
 				   octoprint.plugin.ShutdownPlugin,
 				   octoprint.plugin.SettingsPlugin,
@@ -50,13 +44,13 @@ class CameraPlugin(octoprint.plugin.StartupPlugin,
 		self._camera.startCamera()
 
 	def on_shutdown(self):
-		self._camera.close();
+		self._camera.close()
 
 	def is_blueprint_protected(self):
 		return False
 
 	@octoprint.plugin.BlueprintPlugin.route("/grabPic", methods=["GET"])
-	def grabPic(self):
+	def sendImage(self):
 		if self._camera is None:
 			return make_response("Something went wrong while creating Video Capture Object", 500);
 
