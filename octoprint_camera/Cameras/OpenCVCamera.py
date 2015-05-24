@@ -1,9 +1,11 @@
 from . import ICamera
 
-from time import sleep
+from time import sleep, time
 import cv2
 import logging
 import threading
+
+current_milli_time = lambda: int(round(time() * 1000))
 
 # highly inspired by https://github.com/miguelgrinberg/flask-video-streaming/blob/master/camera_pi.py
 class OpenCVCamera(ICamera):
@@ -25,18 +27,20 @@ class OpenCVCamera(ICamera):
 			while self.running and self.frame is None:
 				sleep(1)
 
-	def _cameraOpen(self):
-		return self._camera is not None and self._camera.isOpened()
-
 	def openCamera(self):
 		self._camera = cv2.VideoCapture(0)
-		if not self._cameraOpen():
+		if not self._camera.isOpened():
 			self._logger.error("Couldn't open camera")
 			return False
 
 		try:
-			self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-			self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+			self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+			self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+
+			self._camera.set(cv2.CAP_PROP_MODE, cv2.CAP_MODE_YUYV)
+			self._camera.set(cv2.CAP_PROP_FORMAT, cv2.CAP_MODE_YUYV)
+
+			self._camera.set(cv2.CAP_PROP_FPS, 30)
 		except Exception as e:
 			self._logger.error('Error setting camera frame to 640x480 size: %s' % e)
 			return False
@@ -56,20 +60,25 @@ class OpenCVCamera(ICamera):
 			cls.thread = None
 			return
 
+		frames = 0
+		start = current_milli_time()
 		while cls.running:
-			success = cls._camera.grab()
-			if success:
-				success, image = cls._camera.retrieve()
-				if success:
-					with cls.frameLock:
-						cls.frame = image
+			successRead, image = cls._camera.read()
+			if successRead:
+				frames += 1
+				with cls.frameLock:
+					cls.frame = image
+
+			if current_milli_time() - start >= 1000:
+				cls._logger.info("%d fps" % frames)
+				frames = 0
+				start = current_milli_time()
 
 		cls.thread = None
 		cls.close()
 
 	def grabImage(self):
-		self.startCamera()
 		with self.frameLock:
 			ret, jpeg = cv2.imencode('.jpg', self.frame)
-			return jpeg.tostring()
+			return jpeg.tostring() if ret else None
 
