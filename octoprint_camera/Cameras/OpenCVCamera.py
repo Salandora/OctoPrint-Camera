@@ -5,11 +5,8 @@ import cv2
 import logging
 import threading
 
-current_milli_time = lambda: int(round(time() * 1000))
-
 # highly inspired by https://github.com/miguelgrinberg/flask-video-streaming/blob/master/camera_pi.py
 class OpenCVCamera(ICamera):
-
 	def __init__(self):
 		self._logger = logging.getLogger("octoprint.plugins.camera")
 		self.running = False
@@ -18,14 +15,18 @@ class OpenCVCamera(ICamera):
 
 		self.frameLock = threading.Lock()
 
+	def close(self):
+		self.running = False
+		if not self._camera:
+			return
+
+		self._camera.release()
+
 	def startCamera(self):
 		if self.thread is None:
 			self.running = True
 			self.thread = threading.Thread(target=self._thread)
 			self.thread.start()
-
-			while self.running and self.frame is None:
-				sleep(1)
 
 	def openCamera(self):
 		self._camera = cv2.VideoCapture(0)
@@ -33,26 +34,18 @@ class OpenCVCamera(ICamera):
 			self._logger.error("Couldn't open camera")
 			return False
 
-		try:
-			self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-			self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-
-			self._camera.set(cv2.CAP_PROP_MODE, cv2.CAP_MODE_YUYV)
-			self._camera.set(cv2.CAP_PROP_FORMAT, cv2.CAP_MODE_YUYV)
-
-			self._camera.set(cv2.CAP_PROP_FPS, 30)
-		except Exception as e:
-			self._logger.error('Error setting camera frame to 640x480 size: %s' % e)
-			return False
-
+		self._logger.info("Camera FPS: %d" % self._camera.get(cv2.CAP_PROP_FPS))
 		return True
 
-	def close(self):
-		self.running = False
-		if not self._camera:
-			return
+	def setCameraSize(self, width=640, height=480):
+		try:
+			self._camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+			self._logger.info("Camera Width: %d" % self._camera.get(cv2.CAP_PROP_FRAME_WIDTH))
 
-		self._camera.release()
+			self._camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+			self._logger.info("Camera Height: %d" % self._camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+		except Exception as e:
+			self._logger.exception('Error setting camera Size to %dx%d: %s' % (width, height, e))
 
 	def _thread(cls):
 		if not cls.openCamera():
@@ -68,11 +61,6 @@ class OpenCVCamera(ICamera):
 				frames += 1
 				with cls.frameLock:
 					cls.frame = image
-
-			if current_milli_time() - start >= 1000:
-				cls._logger.info("%d fps" % frames)
-				frames = 0
-				start = current_milli_time()
 
 		cls.thread = None
 		cls.close()

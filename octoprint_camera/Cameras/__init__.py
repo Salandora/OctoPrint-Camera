@@ -22,5 +22,8 @@ class ICamera(object):
 	def close(self): 
 		pass
 
+	def setCameraSize(self, width, height):
+		pass
+
 	def grabImage(self):
 		pass
