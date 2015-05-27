@@ -17,48 +17,84 @@ import octoprint.plugin
 
 from .Cameras import getCameraObject
 
+IMAGE_FORMAT = "image/jpeg"
+
 class CameraPlugin(octoprint.plugin.StartupPlugin,
 				   octoprint.plugin.ShutdownPlugin,
+				   octoprint.plugin.AssetPlugin,
+				   octoprint.plugin.TemplatePlugin,
 				   octoprint.plugin.SettingsPlugin):
 	def __init__(self, *args, **kwargs):
 		self._logger = logging.getLogger("octoprint.plugins.camera")
-
-	def __del__(self):
-		if self._camera is not None:
-			self._camera.close()
-
-	def on_startup(self, host, port):
 		self._camera = getCameraObject()
+
+	def get_template_configs(self):
+		return [dict(type="settings", custom_bindings=True)]
+
+	def get_assets(self):
+		return dict(js=["js/camera.js"])
+
+	def get_settings_defaults(self):
+		return dict(
+			videoCaptureInput = 0,
+			size = dict(width=640, height=480),
+			format = "image/jpeg"
+		)
+
+	def on_settings_save(self, data):
+		oldVideoCaptureInput = self._settings.get_int(["videoCaptureInput"])
+		oldSize = self._settings.get(["size"])
+
+		super(CameraPlugin, self).on_settings_save(data)
+
+		IMAGE_FORMAT = self._settings.get(["format"])
+
+		if oldVideoCaptureInput != self._settings.get_int(["videoCaptureInput"]):
+			self._camera.openCamera(self._settings.get_int(["videoCaptureInput"]))
+
+		if oldSize != self._settings.get(["size"]):
+			self._camera.stopCamera()
+			self._camera.setCameraSize(self._settings.get_int(["size", "width"]), self._settings.get_int(["size", "height"]))
+		
+		self._camera.startCamera()
+
+	def on_after_startup(self):
 		if self._camera is None:
 			self._core_logger.error("Camera Object was not created correctly")
+			return
 
+		IMAGE_FORMAT = self._settings.get(["format"])
+
+		self._camera.openCamera(self._settings.get_int(["videoCaptureInput"]))
+		self._camera.setCameraSize(self._settings.get_int(["size", "width"]), self._settings.get_int(["size", "height"]))
 		self._camera.startCamera()
 
 	def on_shutdown(self):
-		self._camera.close()
+		if self._camera:
+			self._camera.close()
 
 	def routes_hook(self, current_routes):
 		return [
-			(r"/camera/grabImage", CameraResponseHandler, dict())
+			(r"grabImage", ImageResponseHandler, dict(imageFunc=self._camera.grabImage))
 		]
 
-class CameraResponseHandler(tornado.web.RequestHandler):
-	def initialize(self, access_validation=None):
-		self._camera = getCameraObject()
+class ImageResponseHandler(tornado.web.RequestHandler):
+	def initialize(self, imageFunc, access_validation=None):
+		self._imageFunc = imageFunc
 		self._access_validation = access_validation
 
 	def get(self, *args, **kwargs):
 		if self._access_validation is not None:
 			self._access_validation(self.request)
 
-		if self._camera is None:
-			return make_response("Something went wrong while creating Video Capture Object", 500);
+		if self._imageFunc is None:
+			raise tornado.web.HTTPError(500);
 
-		frame = self._camera.grabImage()
+		frame = self._imageFunc()
 		if frame is None:
-			return make_response("Something went wrong while grabbing an Image", 500);
+			raise tornado.web.HTTPError(500);
 
-		self.set_header("Content-Type", "image/jpeg")
+		self.set_header("Content-Type", IMAGE_FORMAT)
 		self.write(frame)
 		self.finish()
 
