@@ -95,6 +95,10 @@ class ImageResponseHandler(tornado.web.RequestHandler):
 			raise tornado.web.HTTPError(500);
 
 		self.set_header("Content-Type", IMAGE_FORMAT)
+		self.set_header("Cache-Control", "no-cache, no-store, must-revalidate")
+		self.set_header("Pragma", "no-cache")
+		self.set_header("Expires", "0")
+		
 		self.write(frame)
 		self.finish()
 
